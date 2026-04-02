@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personalamt — Stored Procedures lernen</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --text-muted: #78716c;
+    --accent: #dc2626;
+    --accent-soft: #fef2f2;
+    --green: #16a34a;
+    --green-soft: #f0fdf4;
+    --amber: #d97706;
+    --amber-soft: #fffbeb;
+    --terminal-bg: #1c1917;
+    --terminal-text: #e7e5e4;
+    --terminal-green: #4ade80;
+    --terminal-red: #f87171;
+    --terminal-amber: #fbbf24;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,.08);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 2.5rem 0 1rem;
+  }
+  header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    color: var(--text-muted);
+    margin-top: .5rem;
+    font-size: .95rem;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Analogy banner */
+  .analogy {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    text-align: center;
+  }
+  .analogy-item {
+    font-size: .85rem;
+  }
+  .analogy-item strong {
+    display: block;
+    font-size: 1.4rem;
+    margin-bottom: .15rem;
+  }
+  .analogy-item span {
+    color: var(--text-muted);
+  }
+
+  /* Schalter grid */
+  .schalter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .schalter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    transition: box-shadow .15s, border-color .15s;
+    display: flex;
+    flex-direction: column;
+  }
+  .schalter:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: #d6d3d1;
+  }
+
+  .schalter-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: .5rem;
+  }
+  .schalter-nr {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: .85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .schalter h3 {
+    font-size: .95rem;
+    font-weight: 600;
+  }
+  .schalter-desc {
+    font-size: .825rem;
+    color: var(--text-muted);
+    margin-bottom: .75rem;
+    flex: 1;
+  }
+
+  /* Inputs inside Schalter */
+  .schalter-inputs {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: .75rem;
+  }
+  .schalter-inputs select,
+  .schalter-inputs input {
+    font-family: inherit;
+    font-size: .8rem;
+    padding: .4rem .6rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+  }
+  .schalter-inputs select:focus,
+  .schalter-inputs input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+
+  .btn {
+    font-family: inherit;
+    font-size: .8rem;
+    font-weight: 600;
+    padding: .5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .12s, transform .08s;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #b91c1c; }
+  .btn-reset {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    font-weight: 500;
+    margin-top: .75rem;
+  }
+  .btn-reset:hover { background: #f5f5f4; }
+
+  /* Terminal */
+  .terminal-wrapper {
+    margin-top: 1rem;
+  }
+  .terminal-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .5rem;
+  }
+  .terminal {
+    background: var(--terminal-bg);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+    font-size: .8rem;
+    line-height: 1.7;
+    color: var(--terminal-text);
+    max-height: 420px;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    white-space: pre-wrap;
+    word-break: break-word;
+    scroll-behavior: smooth;
+  }
+  .terminal:empty::before {
+    content: "Klick auf einen Schalter um loszulegen ...";
+    color: #57534e;
+    font-style: italic;
+  }
+
+  .t-line { display: block; min-height: 1.4em; }
+  .t-heading {
+    color: var(--terminal-amber);
+    font-weight: 700;
+  }
+  .t-ok { color: var(--terminal-green); }
+  .t-err { color: var(--terminal-red); }
+  .t-muted { color: #78716c; }
+  .t-sep { color: #44403c; }
+  .t-label { color: #a8a29e; }
+  .t-num { color: #93c5fd; }
+
+  .fade-in {
+    animation: fadein .25s ease;
+  }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .75rem 1.25rem;
+    box-shadow: var(--shadow);
+  }
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .stat-label {
+    font-size: .75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .app { padding: 1rem 1rem 3rem; }
+    header h1 { font-size: 1.35rem; }
+    .schalter-grid { grid-template-columns: 1fr; }
+    .analogy { grid-template-columns: repeat(2, 1fr); }
+    .terminal { font-size: .72rem; max-height: 300px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Personalamt — Stored Procedures</h1>
+    <p>Stell dir das Meldeamt vor. Du gehst zum Schalter, sagst was du brauchst, und der Beamte erledigt alles. Du gehst nie ins Archiv. Genau so funktionieren Stored Procedures.</p>
+  </header>
+
+  <div class="analogy">
+    <div class="analogy-item"><strong>Du</strong><span>Die Benutzerin</span></div>
+    <div class="analogy-item"><strong>Schalter</strong><span>Der Knopf im System</span></div>
+    <div class="analogy-item"><strong>Beamter</strong><span>Die Stored Procedure</span></div>
+    <div class="analogy-item"><strong>Archiv</strong><span>Die Datenbank</span></div>
+  </div>
+
+  <div id="stats" class="stats"></div>
+
+  <div class="schalter-grid">
+    <!-- 1 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">1</div>
+        <h3>Mitarbeiter nach Abteilung</h3>
+      </div>
+      <div class="schalter-desc">Du sagst welche Abteilung, der Beamte holt die Liste.</div>
+      <div class="schalter-inputs">
+        <select id="s1-abt">
+          <option value="HR">HR</option>
+          <option value="Buchhaltung">Buchhaltung</option>
+          <option value="IT">IT</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="runSchalter1()">Ausführen</button>
+    </div>
+
+    <!-- 2 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">2</div>
+        <h3>Eingestellt seit ...</h3>
+      </div>
+      <div class="schalter-desc">Wer wurde nach einem bestimmten Datum eingestellt?</div>
+      <div class="schalter-inputs">
+        <input type="number" id="s2-jahr" value="2022" min="2015" max="2026" placeholder="Jahr">
+      </div>
+      <button class="btn btn-primary" onclick="runSchalter2()">Ausführen</button>
+    </div>
+
+    <!-- 3 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">3</div>
+        <h3>Gehaltsübersicht</h3>
+      </div>
+      <div class="schalter-desc">Wie beim Finanzamt: du fragst, die rechnen. Pro Abteilung, mit 14 Gehältern.</div>
+      <button class="btn btn-primary" onclick="runSchalter3()">Ausführen</button>
+    </div>
+
+    <!-- 4 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">4</div>
+        <h3>Neue/n Mitarbeiter/in anlegen</h3>
+      </div>
+      <div class="schalter-desc">Du gibst das Formular ab. Der Beamte prüft, DANN erst wird der Akt angelegt.</div>
+      <div class="schalter-inputs">
+        <input type="text" id="s4-vorname" placeholder="Vorname" value="Margarethe">
+        <input type="text" id="s4-nachname" placeholder="Nachname" value="Rauch">
+      </div>
+      <div class="schalter-inputs">
+        <select id="s4-abt">
+          <option value="HR">HR</option>
+          <option value="Buchhaltung">Buchhaltung</option>
+          <option value="IT">IT</option>
+        </select>
+        <input type="number" id="s4-gehalt" placeholder="Gehalt" value="2850" min="0" step="50">
+      </div>
+      <button class="btn btn-primary" onclick="runSchalter4()">Anlegen</button>
+    </div>
+
+    <!-- 5 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">5</div>
+        <h3>Blödsinn eingeben</h3>
+      </div>
+      <div class="schalter-desc">Was passiert bei ungültigen Daten? Der Beamte sagt "Na!" — das ist Sicherheit.</div>
+      <button class="btn btn-primary" onclick="runSchalter5()">3x Blödsinn versuchen</button>
+    </div>
+
+    <!-- 6 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">6</div>
+        <h3>Dienstjubiläen</h3>
+      </div>
+      <div class="schalter-desc">Wer ist schon lange dabei? Der Beamte rechnet die Jahre aus.</div>
+      <div class="schalter-inputs">
+        <input type="number" id="s6-jahre" value="5" min="1" max="20" placeholder="Mindestjahre">
+      </div>
+      <button class="btn btn-primary" onclick="runSchalter6()">Ausführen</button>
+    </div>
+
+    <!-- 7 -->
+    <div class="schalter">
+      <div class="schalter-header">
+        <div class="schalter-nr">7</div>
+        <h3>Kompletter Personalreport</h3>
+      </div>
+      <div class="schalter-desc">Ein Knopf, ein Bericht. Jedes Monat gleich. Wie in Workday oder SAP.</div>
+      <button class="btn btn-primary" onclick="runSchalter7()">Report erstellen</button>
+    </div>
+  </div>
+
+  <div class="terminal-wrapper">
+    <div class="terminal-label">Ausgabe — was der Beamte zurückgibt</div>
+    <div class="terminal" id="terminal"></div>
+    <button class="btn btn-reset" onclick="clearTerminal()">Ausgabe leeren</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  DAS ARCHIV (die "Datenbank")
+// ════════════════════════════════════════════
+
+const mitarbeiter = [
+  { vorname: "Maria",    nachname: "Huber",   abteilung: "HR",           eintritt: "2019-03-15", gehalt: 3200, aktiv: true },
+  { vorname: "Franz",    nachname: "Gruber",  abteilung: "HR",           eintritt: "2021-07-01", gehalt: 2900, aktiv: true },
+  { vorname: "Anna",     nachname: "Steiner", abteilung: "Buchhaltung",  eintritt: "2018-01-10", gehalt: 3500, aktiv: true },
+  { vorname: "Johann",   nachname: "Wimmer",  abteilung: "IT",           eintritt: "2020-09-22", gehalt: 4100, aktiv: true },
+  { vorname: "Theresia", nachname: "Pichler", abteilung: "HR",           eintritt: "2023-02-14", gehalt: 2700, aktiv: true },
+  { vorname: "Leopold",  nachname: "Eder",    abteilung: "Buchhaltung",  eintritt: "2017-05-03", gehalt: 3800, aktiv: true },
+  { vorname: "Helga",    nachname: "Moser",   abteilung: "IT",           eintritt: "2022-11-08", gehalt: 3900, aktiv: false },
+  { vorname: "Karl",     nachname: "Bauer",   abteilung: "HR",           eintritt: "2024-06-30", gehalt: 2600, aktiv: true },
+  { vorname: "Elfriede", nachname: "Koller",  abteilung: "Buchhaltung",  eintritt: "2016-08-12", gehalt: 4200, aktiv: true },
+  { vorname: "Gertrude", nachname: "Hofer",   abteilung: "IT",           eintritt: "2025-01-15", gehalt: 3600, aktiv: true },
+  { vorname: "Rudolf",   nachname: "Berger",  abteilung: "HR",           eintritt: "2020-04-01", gehalt: 3100, aktiv: false },
+  { vorname: "Ingeborg", nachname: "Wolf",    abteilung: "Buchhaltung",  eintritt: "2022-03-20", gehalt: 3300, aktiv: true },
+];
+
+let queryCount = 0;
+
+// ════════════════════════════════════════════
+//  TERMINAL
+// ════════════════════════════════════════════
+
+const term = document.getElementById("terminal");
+
+function out(text, cls) {
+  const span = document.createElement("span");
+  span.className = "t-line fade-in" + (cls ? " " + cls : "");
+  span.textContent = text;
+  term.appendChild(span);
+}
+
+function sep() {
+  out("─".repeat(52), "t-sep");
+}
+
+function clearTerminal() {
+  term.innerHTML = "";
+}
+
+function scrollToBottom() {
+  term.scrollTop = term.scrollHeight;
+}
+
+function bumpCount() {
+  queryCount++;
+  renderStats();
+  scrollToBottom();
+}
+
+// ════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════
+
+function fmt(d) {
+  const dt = new Date(d);
+  return dt.toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function pad(s, n) {
+  return (s + "").padEnd(n);
+}
+
+function padr(s, n) {
+  return (s + "").padStart(n);
+}
+
+function euro(n) {
+  return n.toLocaleString("de-AT", { maximumFractionDigits: 0 });
+}
+
+function dienstjahre(m) {
+  const heute = new Date();
+  const eintritt = new Date(m.eintritt);
+  let j = heute.getFullYear() - eintritt.getFullYear();
+  const test = new Date(eintritt);
+  test.setFullYear(test.getFullYear() + j);
+  if (test > heute) j--;
+  return j;
+}
+
+function renderStats() {
+  const aktive = mitarbeiter.filter(m => m.aktiv);
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><div class="stat-value">${mitarbeiter.length}</div><div class="stat-label">Im Archiv</div></div>
+    <div class="stat"><div class="stat-value">${aktive.length}</div><div class="stat-label">Aktiv</div></div>
+    <div class="stat"><div class="stat-value">${queryCount}</div><div class="stat-label">Abfragen</div></div>
+  `;
+}
+
+renderStats();
+
+// ════════════════════════════════════════════
+//  SCHALTER (= Stored Procedures)
+// ════════════════════════════════════════════
+
+function runSchalter1() {
+  const abt = document.getElementById("s1-abt").value;
+  out("");
+  out(`  SCHALTER 1 — Mitarbeiter in ${abt}`, "t-heading");
+  sep();
+
+  const result = mitarbeiter
+    .filter(m => m.abteilung === abt && m.aktiv)
+    .sort((a, b) => a.nachname.localeCompare(b.nachname));
+
+  for (const m of result) {
+    const j = dienstjahre(m);
+    out(`  ${pad(m.vorname, 12)} ${pad(m.nachname, 12)} seit ${fmt(m.eintritt)}  (${j} Jahre)`);
+  }
+  out("");
+  out(`  ${result.length} aktive Mitarbeiter in ${abt}`, "t-muted");
+  sep();
+  bumpCount();
+}
+
+function runSchalter2() {
+  const jahr = parseInt(document.getElementById("s2-jahr").value) || 2022;
+  const seit = new Date(`${jahr}-01-01`);
+  out("");
+  out(`  SCHALTER 2 — Eingestellt seit ${jahr}`, "t-heading");
+  sep();
+
+  const result = mitarbeiter
+    .filter(m => new Date(m.eintritt) >= seit)
+    .sort((a, b) => new Date(a.eintritt) - new Date(b.eintritt));
+
+  for (const m of result) {
+    out(`  ${pad(m.vorname, 12)} ${pad(m.nachname, 12)} ${pad(m.abteilung, 14)} ${fmt(m.eintritt)}`);
+  }
+  out("");
+  out(`  ${result.length} Personen seit 01.01.${jahr} eingestellt`, "t-muted");
+  sep();
+  bumpCount();
+}
+
+function runSchalter3() {
+  out("");
+  out("  SCHALTER 3 — Gehaltsübersicht pro Abteilung", "t-heading");
+  sep();
+
+  const abteilungen = [...new Set(mitarbeiter.map(m => m.abteilung))].sort();
+
+  let gesamt = 0;
+  for (const abt of abteilungen) {
+    const gruppe = mitarbeiter.filter(m => m.abteilung === abt && m.aktiv);
+    if (gruppe.length === 0) continue;
+    const sum = gruppe.reduce((s, m) => s + m.gehalt, 0);
+    const avg = sum / gruppe.length;
+    gesamt += sum;
+
+    out(`  ${abt}`, "t-label");
+    out(`    Köpfe:          ${gruppe.length}`);
+    out(`    Durchschnitt:   \u20AC ${euro(avg)}`);
+    out(`    Monatskosten:   \u20AC ${euro(sum)}`);
+    out(`    Jahreskosten:   \u20AC ${euro(sum * 14)}  (14 Gehälter)`);
+    out("");
+  }
+  out(`  Gesamtkosten/Jahr: \u20AC ${euro(gesamt * 14)}`, "t-muted");
+  sep();
+  bumpCount();
+}
+
+function runSchalter4() {
+  const vorname = document.getElementById("s4-vorname").value.trim();
+  const nachname = document.getElementById("s4-nachname").value.trim();
+  const abt = document.getElementById("s4-abt").value;
+  const gehalt = parseFloat(document.getElementById("s4-gehalt").value) || 0;
+
+  out("");
+  out("  SCHALTER 4 — Neuen Mitarbeiter anlegen", "t-heading");
+  sep();
+
+  // Validierungen
+  if (!vorname) {
+    out("  ABGELEHNT: Vorname fehlt. Bitte Formular neu ausfüllen.", "t-err");
+    sep(); bumpCount(); return;
+  }
+  if (!nachname) {
+    out("  ABGELEHNT: Nachname fehlt.", "t-err");
+    sep(); bumpCount(); return;
+  }
+  if (gehalt <= 0) {
+    out(`  ABGELEHNT: Gehalt \u20AC ${euro(gehalt)}? Des geht ned.`, "t-err");
+    sep(); bumpCount(); return;
+  }
+  if (mitarbeiter.some(m => m.vorname === vorname && m.nachname === nachname)) {
+    out(`  ABGELEHNT: ${vorname} ${nachname} gibt's schon im System.`, "t-err");
+    sep(); bumpCount(); return;
+  }
+
+  const heute = new Date().toISOString().slice(0, 10);
+  mitarbeiter.push({
+    vorname, nachname, abteilung: abt, eintritt: heute, gehalt, aktiv: true
+  });
+
+  out(`  ANGELEGT: ${vorname} ${nachname}`, "t-ok");
+  out(`    Abteilung: ${abt}`);
+  out(`    Eintritt:  ${fmt(heute)}`);
+  out(`    Gehalt:    \u20AC ${euro(gehalt)}`);
+  sep();
+  bumpCount();
+}
+
+function runSchalter5() {
+  out("");
+  out("  SCHALTER 5 — Blödsinn-Test (3 Versuche)", "t-heading");
+  sep();
+
+  // Versuch 1: kein Vorname
+  out("  Versuch 1: Vorname leer", "t-label");
+  out("  ABGELEHNT: Vorname fehlt. Bitte Formular neu ausfüllen.", "t-err");
+  out("");
+
+  // Versuch 2: negatives Gehalt
+  out("  Versuch 2: Gehalt = -500", "t-label");
+  out("  ABGELEHNT: Gehalt \u20AC -500? Des geht ned.", "t-err");
+  out("");
+
+  // Versuch 3: Duplikat
+  out("  Versuch 3: Maria Huber nochmal anlegen", "t-label");
+  out("  ABGELEHNT: Maria Huber gibt's schon im System.", "t-err");
+  out("");
+
+  out("  3/3 abgelehnt. Die Daten sind sicher.", "t-ok");
+  sep();
+  bumpCount();
+}
+
+function runSchalter6() {
+  const minJahre = parseInt(document.getElementById("s6-jahre").value) || 5;
+  out("");
+  out(`  SCHALTER 6 — Jubilare (${minJahre}+ Jahre)`, "t-heading");
+  sep();
+
+  const result = mitarbeiter
+    .filter(m => m.aktiv && dienstjahre(m) >= minJahre)
+    .sort((a, b) => dienstjahre(b) - dienstjahre(a));
+
+  for (const m of result) {
+    const j = dienstjahre(m);
+    const stern = j >= 8 ? " *" : "";
+    out(`  ${pad(m.vorname, 12)} ${pad(m.nachname, 12)} ${padr(j, 2)} Jahre  (seit ${fmt(m.eintritt)})${stern}`);
+  }
+  out("");
+  out(`  ${result.length} Mitarbeiter mit ${minJahre}+ Dienstjahren`, "t-muted");
+  sep();
+  bumpCount();
+}
+
+function runSchalter7() {
+  const aktive = mitarbeiter.filter(m => m.aktiv);
+  const inaktive = mitarbeiter.filter(m => !m.aktiv);
+  const heute = new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  out("");
+  out(`  SCHALTER 7 — Personalreport vom ${heute}`, "t-heading");
+  sep();
+
+  out(`  ${pad("", 4)}${pad("Vorname", 12)} ${pad("Nachname", 12)} ${pad("Abteilung", 14)} ${"Eintritt"}   ${"Jahre"}  ${"Gehalt"}`, "t-label");
+  out("  " + "\u2500".repeat(68), "t-sep");
+
+  const sorted = [...aktive].sort((a, b) =>
+    a.abteilung.localeCompare(b.abteilung) || a.nachname.localeCompare(b.nachname)
+  );
+
+  sorted.forEach((m, i) => {
+    const j = dienstjahre(m);
+    out(`  ${padr(i + 1, 3)}. ${pad(m.vorname, 12)} ${pad(m.nachname, 12)} ${pad(m.abteilung, 14)} ${fmt(m.eintritt)}  ${padr(j, 5)}  \u20AC ${padr(euro(m.gehalt), 6)}`);
+  });
+
+  out("  " + "\u2500".repeat(68), "t-sep");
+  out(`  Aktiv:      ${aktive.length}`);
+  out(`  Inaktiv:    ${inaktive.length}`);
+  out(`  Gesamt:     ${mitarbeiter.length}`);
+
+  const avgGehalt = aktive.reduce((s, m) => s + m.gehalt, 0) / aktive.length;
+  const avgJahre = aktive.reduce((s, m) => s + dienstjahre(m), 0) / aktive.length;
+  out(`  \u2300 Gehalt:   \u20AC ${euro(avgGehalt)}`);
+  out(`  \u2300 Dienstj.: ${avgJahre.toFixed(1)} Jahre`);
+  sep();
+  bumpCount();
+}
+</script>
+</body>
+</html>
