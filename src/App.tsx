@@ -1,163 +1,211 @@
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { initialMitarbeiter, abteilungen, dienstjahre, fmtDate, fmtEuro, type Mitarbeiter } from "./data"
+import { initialKandidaten, initialBewertungen, statusWerte, bewertungsTypen, fmtDate, fmtScore, avgScore, type Kandidat, type Bewertung } from "./data"
+
+const statusFarben: Record<string, string> = {
+  Screening: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  Interview: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+  Angebot:   "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+  Abgesagt:  "bg-stone-100 text-stone-500 hover:bg-stone-100",
+}
+
+const scoreDimensionen = ["Fachlich", "Kommunikation", "Kulturfit", "Motivation"] as const
+const th = "text-[11px] font-semibold text-[#999] uppercase tracking-wider"
+
+function scoreFarbe(s: number): string {
+  if (s <= 2) return "text-red-600 font-medium"
+  if (s === 3) return "text-amber-600 font-medium"
+  if (s === 4) return "text-emerald-600 font-medium"
+  return "text-green-700 font-bold"
+}
+
+function SpBadge({ n, farbe }: { n: number; farbe: string }) {
+  return <Badge variant="outline" className={`text-[10px] font-mono ${farbe}`}>SP {n}</Badge>
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return <Badge variant="secondary" className={`text-[10px] ${statusFarben[status] ?? ""}`}>{status}</Badge>
+}
 
 export default function App() {
-  const [mitarbeiter, setMitarbeiter] = useState([...initialMitarbeiter])
+  const [kandidaten] = useState<Kandidat[]>([...initialKandidaten])
+  const [bewertungen, setBewertungen] = useState<Bewertung[]>([...initialBewertungen])
   const [filter, setFilter] = useState("Alle")
-  const [vorname, setVorname] = useState("")
-  const [nachname, setNachname] = useState("")
-  const [abt, setAbt] = useState("HR")
-  const [gehalt, setGehalt] = useState("")
+  const [selKandidat, setSelKandidat] = useState("")
+  const [selRunde, setSelRunde] = useState("")
+  const [selTyp, setSelTyp] = useState("")
+  const [scores, setScores] = useState(["", "", "", ""])
+  const [kommentar, setKommentar] = useState("")
   const [meldung, setMeldung] = useState<{ text: string; ok: boolean } | null>(null)
 
-  const gefiltert = filter === "Alle" ? mitarbeiter : mitarbeiter.filter(m => m.abteilung === filter)
-  const aktive = mitarbeiter.filter(m => m.aktiv)
+  const gefiltert = filter === "Alle" ? kandidaten : kandidaten.filter(k => k.status === filter)
 
-  function anlegen() {
-    if (!vorname.trim()) { setMeldung({ text: "Vorname fehlt.", ok: false }); return }
-    if (!nachname.trim()) { setMeldung({ text: "Nachname fehlt.", ok: false }); return }
-    const g = parseFloat(gehalt) || 0
-    if (g <= 0) { setMeldung({ text: `Gehalt € ${fmtEuro(g)}? Des geht ned.`, ok: false }); return }
-    if (mitarbeiter.some(m => m.vorname === vorname && m.nachname === nachname)) {
-      setMeldung({ text: `${vorname} ${nachname} gibt's schon.`, ok: false }); return
-    }
-    const neu: Mitarbeiter = { vorname, nachname, abteilung: abt, eintritt: new Date().toISOString().slice(0, 10), gehalt: g, aktiv: true }
-    setMitarbeiter(prev => [...prev, neu])
-    setMeldung({ text: `${vorname} ${nachname} angelegt.`, ok: true })
-    setVorname(""); setNachname(""); setGehalt("")
+  const ranking = kandidaten
+    .map(k => {
+      const kb = bewertungen.filter(b => b.kandidatId === k.id)
+      return kb.length === 0 ? null : { kandidat: k, runden: kb.length, avg: avgScore(kb) }
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+    .sort((a, b) => b.avg - a.avg)
+
+  function setScore(i: number, v: string) {
+    setScores(prev => { const n = [...prev]; n[i] = v; return n })
   }
 
-  // Gehaltsübersicht
-  const gruppen = [...new Set(mitarbeiter.map(m => m.abteilung))].sort().map(abtName => {
-    const leute = aktive.filter(m => m.abteilung === abtName)
-    const sum = leute.reduce((s, m) => s + m.gehalt, 0)
-    return { abtName, count: leute.length, avg: leute.length ? sum / leute.length : 0, sum, year: sum * 14 }
-  })
+  function bewertungAnlegen() {
+    if (!selKandidat) { setMeldung({ text: "Kandidat muss ausgewahlt werden.", ok: false }); return }
+    const nums = scores.map(Number)
+    if (nums.some(s => isNaN(s) || s < 1 || s > 5)) {
+      setMeldung({ text: "Alle Scores mussen zwischen 1 und 5 liegen.", ok: false }); return
+    }
+    setBewertungen(prev => [...prev, {
+      id: crypto.randomUUID(), kandidatId: selKandidat,
+      runde: selRunde || "1", typ: selTyp || bewertungsTypen[0],
+      fachlich: nums[0], kommunikation: nums[1], kulturfit: nums[2], motivation: nums[3],
+      kommentar: kommentar.trim(), datum: new Date().toISOString().slice(0, 10),
+    }])
+    const name = kandidaten.find(k => k.id === selKandidat)?.name ?? "Kandidat"
+    setMeldung({ text: `Bewertung fur ${name} gespeichert.`, ok: true })
+    setScores(["", "", "", ""]); setKommentar("")
+  }
 
   return (
     <div className="min-h-screen bg-[#f8f9fa]">
-      {/* Header — wie eine Excel-Titelleiste */}
       <header className="bg-white border-b px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-[#1a1a1a] tracking-tight">Personalamt</h1>
-            <p className="text-sm text-[#666] mt-0.5">Stored Procedures — interaktiv erklärt</p>
+            <h1 className="text-xl font-semibold text-[#1a1a1a] tracking-tight">Interview-Protokoll</h1>
+            <p className="text-sm text-[#666] mt-0.5">Stored Procedures -- interaktiv erklart</p>
           </div>
           <div className="flex gap-6 text-center">
-            <div><p className="text-2xl font-bold tabular-nums text-[#1a1a1a]">{mitarbeiter.length}</p><p className="text-[10px] text-[#999] uppercase tracking-wider">Gesamt</p></div>
-            <div><p className="text-2xl font-bold tabular-nums text-emerald-600">{aktive.length}</p><p className="text-[10px] text-[#999] uppercase tracking-wider">Aktiv</p></div>
+            <div><p className="text-2xl font-bold tabular-nums text-[#1a1a1a]">{kandidaten.length}</p><p className="text-[10px] text-[#999] uppercase tracking-wider">Kandidaten</p></div>
+            <div><p className="text-2xl font-bold tabular-nums text-emerald-600">{bewertungen.length}</p><p className="text-[10px] text-[#999] uppercase tracking-wider">Bewertungen</p></div>
           </div>
         </div>
       </header>
 
-      {/* Analogie-Leiste */}
       <div className="bg-[#fff8e1] border-b border-[#ffe082] px-6 py-2.5">
         <p className="max-w-6xl mx-auto text-sm text-[#5d4037]">
-          <strong>So funktioniert's:</strong> Du = am Schalter. Filter/Buttons = Stored Procedures. Tabelle = das Archiv, das du nie direkt siehst.
+          <strong>So funktioniert's:</strong> Jeder Filter und Button ist eine Stored Procedure -- sie holt, pruft oder berechnet Daten im Hintergrund.
         </p>
       </div>
 
       <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ── Linke Spalte: Aktionen ── */}
           <div className="space-y-4">
-            {/* Filter */}
+            {/* SP 1 -- Filter */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-[#666] flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] font-mono bg-emerald-50 text-emerald-700 border-emerald-200">SP 1</Badge>
-                  Nach Abteilung filtern
+                  <SpBadge n={1} farbe="bg-emerald-50 text-emerald-700 border-emerald-200" />
+                  Nach Status filtern
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Select value={filter} onValueChange={v => v && setFilter(v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Alle">Alle Abteilungen</SelectItem>
-                    {abteilungen.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    <SelectItem value="Alle">Alle Status</SelectItem>
+                    {statusWerte.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </CardContent>
             </Card>
 
-            {/* Anlegen */}
+            {/* SP 2 -- Bewertung */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-[#666] flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] font-mono bg-blue-50 text-blue-700 border-blue-200">SP 2</Badge>
-                  Neue/n Mitarbeiter/in
+                  <SpBadge n={2} farbe="bg-blue-50 text-blue-700 border-blue-200" />
+                  Neue Bewertung erfassen
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label className="text-xs text-[#999]">Vorname</Label><Input value={vorname} onChange={e => setVorname(e.target.value)} placeholder="Maria" /></div>
-                  <div><Label className="text-xs text-[#999]">Nachname</Label><Input value={nachname} onChange={e => setNachname(e.target.value)} placeholder="Huber" /></div>
+                <div>
+                  <Label className="text-xs text-[#999]">Kandidat</Label>
+                  <Select value={selKandidat} onValueChange={v => v && setSelKandidat(v)}>
+                    <SelectTrigger><SelectValue placeholder="Kandidat wahlen..." /></SelectTrigger>
+                    <SelectContent>
+                      {kandidaten.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs text-[#999]">Abteilung</Label>
-                    <Select value={abt} onValueChange={v => v && setAbt(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{abteilungen.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+                    <Label className="text-xs text-[#999]">Runde</Label>
+                    <Select value={selRunde} onValueChange={v => v && setSelRunde(v)}>
+                      <SelectTrigger><SelectValue placeholder="Runde" /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3].map(n => <SelectItem key={n} value={String(n)}>Runde {n}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   </div>
-                  <div><Label className="text-xs text-[#999]">Gehalt</Label><Input type="number" value={gehalt} onChange={e => setGehalt(e.target.value)} placeholder="3000" /></div>
+                  <div>
+                    <Label className="text-xs text-[#999]">Typ</Label>
+                    <Select value={selTyp} onValueChange={v => v && setSelTyp(v)}>
+                      <SelectTrigger><SelectValue placeholder="Typ" /></SelectTrigger>
+                      <SelectContent>
+                        {bewertungsTypen.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <Button onClick={anlegen} className="w-full">Anlegen</Button>
+                <div className="grid grid-cols-2 gap-2">
+                  {scoreDimensionen.map((dim, i) => (
+                    <div key={dim}>
+                      <Label className="text-xs text-[#999]">{dim} (1-5)</Label>
+                      <Input type="number" min={1} max={5} value={scores[i]} onChange={e => setScore(i, e.target.value)} placeholder="3" />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <Label className="text-xs text-[#999]">Kommentar</Label>
+                  <Input value={kommentar} onChange={e => setKommentar(e.target.value)} placeholder="Optionale Anmerkung..." />
+                </div>
+                <Button onClick={bewertungAnlegen} className="w-full">Bewertung speichern</Button>
                 {meldung && (
                   <p className={`text-xs font-medium ${meldung.ok ? "text-emerald-600" : "text-red-500"}`}>
-                    {meldung.ok ? "✓" : "✗"} {meldung.text}
+                    {meldung.ok ? "+" : "x"} {meldung.text}
                   </p>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* ── Rechte Spalte: Tabelle ── */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Candidates table */}
             <Card>
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-medium text-[#666]">
-                  Mitarbeiter {filter !== "Alle" && <Badge variant="secondary" className="ml-2 text-xs">{filter}</Badge>}
+                  Kandidaten {filter !== "Alle" && <Badge variant="secondary" className="ml-2 text-xs">{filter}</Badge>}
                 </CardTitle>
                 <span className="text-xs text-[#999] tabular-nums">{gefiltert.length} Zeilen</span>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-auto max-h-[420px]">
+                <div className="overflow-auto max-h-[340px]">
                   <Table>
                     <TableHeader className="sticky top-0 bg-[#f8f9fa] z-10">
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider w-[140px]">Vorname</TableHead>
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider w-[140px]">Nachname</TableHead>
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider">Abteilung</TableHead>
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">Eintritt</TableHead>
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">Jahre</TableHead>
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">Gehalt</TableHead>
-                        <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-center w-[60px]">Status</TableHead>
+                        <TableHead className={th}>Name</TableHead>
+                        <TableHead className={th}>Rolle</TableHead>
+                        <TableHead className={`${th} text-right`}>Beworben</TableHead>
+                        <TableHead className={`${th} text-center`}>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {gefiltert.map((m, i) => (
-                        <TableRow key={`${m.vorname}-${m.nachname}-${i}`} className="text-sm">
-                          <TableCell className="font-medium">{m.vorname}</TableCell>
-                          <TableCell>{m.nachname}</TableCell>
-                          <TableCell className="text-[#666]">{m.abteilung}</TableCell>
-                          <TableCell className="text-right tabular-nums text-[#666]">{fmtDate(m.eintritt)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{dienstjahre(m)}</TableCell>
-                          <TableCell className="text-right tabular-nums font-medium">€ {fmtEuro(m.gehalt)}</TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant={m.aktiv ? "default" : "secondary"} className={`text-[10px] ${m.aktiv ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-stone-100 text-stone-500"}`}>
-                              {m.aktiv ? "Aktiv" : "Inaktiv"}
-                            </Badge>
-                          </TableCell>
+                      {gefiltert.map(k => (
+                        <TableRow key={k.id} className="text-sm">
+                          <TableCell className="font-medium">{k.name}</TableCell>
+                          <TableCell className="text-[#666]">{k.rolle}</TableCell>
+                          <TableCell className="text-right tabular-nums text-[#666]">{fmtDate(k.beworbenAm)}</TableCell>
+                          <TableCell className="text-center"><StatusBadge status={k.status} /></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -166,42 +214,41 @@ export default function App() {
               </CardContent>
             </Card>
 
-            {/* Gehaltsübersicht */}
+            {/* SP 3 -- Ranking */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-[#666] flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] font-mono bg-amber-50 text-amber-700 border-amber-200">SP 3</Badge>
-                  Gehaltsübersicht
+                  <SpBadge n={3} farbe="bg-amber-50 text-amber-700 border-amber-200" />
+                  Kandidaten-Ranking
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider">Abteilung</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">Köpfe</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">∅ Gehalt</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">Monat</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-[#999] uppercase tracking-wider text-right">Jahr (14x)</TableHead>
+                      <TableHead className={`${th} text-right w-[60px]`}>Rang</TableHead>
+                      <TableHead className={th}>Name</TableHead>
+                      <TableHead className={th}>Rolle</TableHead>
+                      <TableHead className={`${th} text-right`}>Runden</TableHead>
+                      <TableHead className={`${th} text-right`}>Avg Score</TableHead>
+                      <TableHead className={`${th} text-center`}>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {gruppen.map(g => (
-                      <TableRow key={g.abtName} className="text-sm">
-                        <TableCell className="font-medium">{g.abtName}</TableCell>
-                        <TableCell className="text-right tabular-nums">{g.count}</TableCell>
-                        <TableCell className="text-right tabular-nums">€ {fmtEuro(g.avg)}</TableCell>
-                        <TableCell className="text-right tabular-nums">€ {fmtEuro(g.sum)}</TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">€ {fmtEuro(g.year)}</TableCell>
+                    {ranking.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-sm text-[#999] py-6">Noch keine Bewertungen vorhanden.</TableCell>
+                      </TableRow>
+                    ) : ranking.map((r, i) => (
+                      <TableRow key={r.kandidat.id} className="text-sm">
+                        <TableCell className="text-right tabular-nums font-bold text-[#999]">{i + 1}</TableCell>
+                        <TableCell className="font-medium">{r.kandidat.name}</TableCell>
+                        <TableCell className="text-[#666]">{r.kandidat.rolle}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.runden}</TableCell>
+                        <TableCell className={`text-right tabular-nums ${scoreFarbe(Math.round(r.avg))}`}>{fmtScore(r.avg)}</TableCell>
+                        <TableCell className="text-center"><StatusBadge status={r.kandidat.status} /></TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="text-sm font-bold border-t-2">
-                      <TableCell>Gesamt</TableCell>
-                      <TableCell className="text-right tabular-nums">{gruppen.reduce((s, g) => s + g.count, 0)}</TableCell>
-                      <TableCell className="text-right tabular-nums">€ {fmtEuro(gruppen.reduce((s, g) => s + g.avg, 0) / gruppen.length)}</TableCell>
-                      <TableCell className="text-right tabular-nums">€ {fmtEuro(gruppen.reduce((s, g) => s + g.sum, 0))}</TableCell>
-                      <TableCell className="text-right tabular-nums">€ {fmtEuro(gruppen.reduce((s, g) => s + g.year, 0))}</TableCell>
-                    </TableRow>
                   </TableBody>
                 </Table>
               </CardContent>
@@ -210,11 +257,9 @@ export default function App() {
         </div>
 
         <Separator />
-
-        {/* Footer */}
         <footer className="text-center text-xs text-[#999] py-4 space-y-1">
           <p className="font-medium text-[#666]">Du hast gerade 3 Stored Procedures benutzt.</p>
-          <p>SP 1 = Filter, SP 2 = Anlegen mit Validierung, SP 3 = Gehaltsberechnung. Genau so funktioniert das in SAP, Workday und Co.</p>
+          <p>SP 1 = Filter nach Status, SP 2 = Bewertung mit Validierung, SP 3 = Ranking-Berechnung. Genau so funktioniert das in echten HR-Systemen.</p>
         </footer>
       </main>
     </div>
