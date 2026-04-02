@@ -6,35 +6,45 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { initialKandidaten, initialBewertungen, statusWerte, bewertungsTypen, fmtDate, fmtScore, avgScore, type Kandidat, type Bewertung } from "./data"
 import CountUp from "@/components/CountUp"
 import ShinyText from "@/components/ShinyText"
-import LightPillar from "@/components/LightPillar"
 
-const statusFarben: Record<string, string> = {
-  Screening: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  Interview: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-  Angebot:   "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
-  Abgesagt:  "bg-stone-100 text-stone-500 hover:bg-stone-100",
+const statusStyle: Record<string, string> = {
+  Screening: "bg-sky-50 text-sky-600 border-sky-200",
+  Interview: "bg-violet-50 text-violet-600 border-violet-200",
+  Angebot:   "bg-emerald-50 text-emerald-600 border-emerald-200",
+  Abgesagt:  "bg-stone-50 text-stone-400 border-stone-200",
 }
 
 const scoreDimensionen = ["Fachlich", "Kommunikation", "Kulturfit", "Motivation"] as const
-const th = "text-[11px] font-semibold text-[#999] uppercase tracking-wider"
+const thClass = "text-[10px] font-medium text-stone-400 uppercase tracking-widest"
 
 function scoreFarbe(s: number): string {
-  if (s <= 2) return "text-red-600 font-medium"
-  if (s === 3) return "text-amber-600 font-medium"
-  if (s === 4) return "text-emerald-600 font-medium"
-  return "text-green-700 font-bold"
-}
-
-function SpBadge({ n, farbe }: { n: number; farbe: string }) {
-  return <Badge variant="outline" className={`text-[10px] font-mono ${farbe}`}>SP {n}</Badge>
+  if (s <= 2) return "text-rose-500"
+  if (s <= 3) return "text-amber-500"
+  if (s <= 4) return "text-emerald-500 font-medium"
+  return "text-emerald-600 font-bold"
 }
 
 function StatusBadge({ status }: { status: string }) {
-  return <Badge variant="secondary" className={`text-[10px] ${statusFarben[status] ?? ""}`}>{status}</Badge>
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${statusStyle[status] ?? "bg-stone-50 text-stone-400 border-stone-200"}`}>
+      {status}
+    </span>
+  )
+}
+
+function RankBadge({ rank }: { rank: number }) {
+  const colors = rank === 1 ? "bg-amber-50 text-amber-600 border-amber-200"
+    : rank === 2 ? "bg-stone-50 text-stone-500 border-stone-200"
+    : rank === 3 ? "bg-orange-50 text-orange-500 border-orange-200"
+    : "bg-stone-50 text-stone-400 border-stone-100"
+  return (
+    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold border ${colors}`}>
+      {rank}
+    </span>
+  )
 }
 
 export default function App() {
@@ -63,10 +73,10 @@ export default function App() {
   }
 
   function bewertungAnlegen() {
-    if (!selKandidat) { setMeldung({ text: "Kandidat muss ausgewahlt werden.", ok: false }); return }
+    if (!selKandidat) { setMeldung({ text: "Bitte einen Kandidaten auswählen.", ok: false }); return }
     const nums = scores.map(Number)
     if (nums.some(s => isNaN(s) || s < 1 || s > 5)) {
-      setMeldung({ text: "Alle Scores mussen zwischen 1 und 5 liegen.", ok: false }); return
+      setMeldung({ text: "Alle Bewertungen müssen zwischen 1 und 5 liegen.", ok: false }); return
     }
     setBewertungen(prev => [...prev, {
       id: crypto.randomUUID(), kandidatId: selKandidat,
@@ -75,142 +85,158 @@ export default function App() {
       kommentar: kommentar.trim(), datum: new Date().toISOString().slice(0, 10),
     }])
     const name = kandidaten.find(k => k.id === selKandidat)?.name ?? "Kandidat"
-    setMeldung({ text: `Bewertung fur ${name} gespeichert.`, ok: true })
+    setMeldung({ text: `Bewertung für ${name} gespeichert.`, ok: true })
     setScores(["", "", "", ""]); setKommentar("")
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
-      <header className="relative overflow-hidden bg-white border-b">
-        <div className="absolute inset-0 opacity-30 pointer-events-none">
-          <LightPillar topColor="#7c3aed" bottomColor="#2563eb" intensity={0.6} rotationSpeed={0.3} quality="low" pillarWidth={0.8} glowAmount={0.4} />
-        </div>
-        <div className="relative max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+      {/* ── Header ── */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-100">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight"><ShinyText text="Interview-Protokoll" speed={4} color="#1a1a1a" shineColor="#7c3aed" /></h1>
-            <p className="text-sm text-[#666] mt-0.5">Stored Procedures — interaktiv erklärt</p>
+            <h1 className="text-2xl font-bold tracking-tight text-stone-800">
+              <ShinyText text="Interview-Protokoll" speed={5} color="#292524" shineColor="#8b5cf6" />
+            </h1>
+            <p className="text-[13px] text-stone-400 mt-1">Stored Procedures — interaktiv erklärt</p>
           </div>
-          <div className="flex gap-6 text-center">
-            <div><p className="text-2xl font-bold tabular-nums text-[#1a1a1a]"><CountUp to={kandidaten.length} duration={1.2} /></p><p className="text-[10px] text-[#999] uppercase tracking-wider">Kandidaten</p></div>
-            <div><p className="text-2xl font-bold tabular-nums text-emerald-600"><CountUp to={bewertungen.length} duration={1.2} /></p><p className="text-[10px] text-[#999] uppercase tracking-wider">Bewertungen</p></div>
+          <div className="flex gap-8">
+            <div className="text-right">
+              <p className="text-3xl font-bold tabular-nums text-stone-700"><CountUp to={kandidaten.length} duration={1.5} /></p>
+              <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-0.5">Kandidaten</p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold tabular-nums text-violet-500"><CountUp to={bewertungen.length} duration={1.5} /></p>
+              <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-0.5">Bewertungen</p>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="bg-[#fff8e1] border-b border-[#ffe082] px-6 py-2.5">
-        <p className="max-w-6xl mx-auto text-sm text-[#5d4037]">
-          <strong>So funktioniert's:</strong> Jeder Filter und Button ist eine Stored Procedure -- sie holt, pruft oder berechnet Daten im Hintergrund.
+      {/* ── Info Bar ── */}
+      <div className="bg-violet-50/60 border-b border-violet-100 px-6 py-3">
+        <p className="max-w-6xl mx-auto text-[13px] text-violet-700/80">
+          <span className="font-semibold">So funktioniert's:</span> Jeder Filter und Button ist eine Stored Procedure — sie holt, prüft oder berechnet Daten für dich im Hintergrund.
         </p>
       </div>
 
-      <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="space-y-4">
-            {/* SP 1 -- Filter */}
-            <Card>
+      {/* ── Main ── */}
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* ── Left: Actions ── */}
+          <div className="space-y-5">
+            {/* SP 1 */}
+            <Card className="shadow-sm shadow-stone-200/50 border-stone-100 hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-[#666] flex items-center gap-2">
-                  <SpBadge n={1} farbe="bg-emerald-50 text-emerald-700 border-emerald-200" />
+                <CardTitle className="text-sm font-semibold text-stone-600 flex items-center gap-2.5">
+                  <Badge variant="outline" className="text-[10px] font-mono bg-emerald-50 text-emerald-600 border-emerald-200 rounded-full px-2.5">SP 1</Badge>
                   Nach Status filtern
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Select value={filter} onValueChange={v => v && setFilter(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Alle">Alle Status</SelectItem>
+                    <SelectItem value="Alle">Alle Kandidaten</SelectItem>
                     {statusWerte.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </CardContent>
             </Card>
 
-            {/* SP 2 -- Bewertung */}
-            <Card>
+            {/* SP 2 */}
+            <Card className="shadow-sm shadow-stone-200/50 border-stone-100 hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-[#666] flex items-center gap-2">
-                  <SpBadge n={2} farbe="bg-blue-50 text-blue-700 border-blue-200" />
+                <CardTitle className="text-sm font-semibold text-stone-600 flex items-center gap-2.5">
+                  <Badge variant="outline" className="text-[10px] font-mono bg-violet-50 text-violet-600 border-violet-200 rounded-full px-2.5">SP 2</Badge>
                   Neue Bewertung erfassen
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-xs text-[#999]">Kandidat</Label>
+                  <Label className="text-xs font-medium text-stone-500 mb-1.5 block">Kandidat/in</Label>
                   <Select value={selKandidat} onValueChange={v => v && setSelKandidat(v)}>
-                    <SelectTrigger><SelectValue placeholder="Kandidat wahlen..." /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Bitte auswählen ..." /></SelectTrigger>
                     <SelectContent>
                       {kandidaten.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs text-[#999]">Runde</Label>
+                    <Label className="text-xs font-medium text-stone-500 mb-1.5 block">Runde</Label>
                     <Select value={selRunde} onValueChange={v => v && setSelRunde(v)}>
-                      <SelectTrigger><SelectValue placeholder="Runde" /></SelectTrigger>
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Runde" /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3].map(n => <SelectItem key={n} value={String(n)}>Runde {n}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs text-[#999]">Typ</Label>
+                    <Label className="text-xs font-medium text-stone-500 mb-1.5 block">Typ</Label>
                     <Select value={selTyp} onValueChange={v => v && setSelTyp(v)}>
-                      <SelectTrigger><SelectValue placeholder="Typ" /></SelectTrigger>
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Typ" /></SelectTrigger>
                       <SelectContent>
                         {bewertungsTypen.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {scoreDimensionen.map((dim, i) => (
                     <div key={dim}>
-                      <Label className="text-xs text-[#999]">{dim} (1-5)</Label>
-                      <Input type="number" min={1} max={5} value={scores[i]} onChange={e => setScore(i, e.target.value)} placeholder="3" />
+                      <Label className="text-xs font-medium text-stone-500 mb-1.5 block">{dim}</Label>
+                      <Input type="number" min={1} max={5} value={scores[i]} onChange={e => setScore(i, e.target.value)} placeholder="1–5" className="h-10 tabular-nums" />
                     </div>
                   ))}
                 </div>
                 <div>
-                  <Label className="text-xs text-[#999]">Kommentar</Label>
-                  <Input value={kommentar} onChange={e => setKommentar(e.target.value)} placeholder="Optionale Anmerkung..." />
+                  <Label className="text-xs font-medium text-stone-500 mb-1.5 block">Kommentar</Label>
+                  <Input value={kommentar} onChange={e => setKommentar(e.target.value)} placeholder="Optionale Anmerkung ..." className="h-10" />
                 </div>
-                <Button onClick={bewertungAnlegen} className="w-full">Bewertung speichern</Button>
+                <Button onClick={bewertungAnlegen} className="w-full h-10 bg-violet-500 hover:bg-violet-600 text-white shadow-sm">
+                  Bewertung speichern
+                </Button>
                 {meldung && (
-                  <p className={`text-xs font-medium ${meldung.ok ? "text-emerald-600" : "text-red-500"}`}>
-                    {meldung.ok ? "+" : "x"} {meldung.text}
-                  </p>
+                  <div className={`text-xs font-medium px-3 py-2 rounded-lg ${meldung.ok ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500"}`}>
+                    {meldung.ok ? "✓" : "✗"} {meldung.text}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          <div className="lg:col-span-2 space-y-4">
-            {/* Candidates table */}
-            <Card>
+          {/* ── Right: Tables ── */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Candidates */}
+            <Card className="shadow-sm shadow-stone-200/50 border-stone-100">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-medium text-[#666]">
-                  Kandidaten {filter !== "Alle" && <Badge variant="secondary" className="ml-2 text-xs">{filter}</Badge>}
+                <CardTitle className="text-sm font-semibold text-stone-600 flex items-center gap-2">
+                  Kandidaten
+                  {filter !== "Alle" && <StatusBadge status={filter} />}
                 </CardTitle>
-                <span className="text-xs text-[#999] tabular-nums">{gefiltert.length} Zeilen</span>
+                <span className="text-[11px] text-stone-400 tabular-nums">{gefiltert.length} Ergebnisse</span>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-auto max-h-[340px]">
+                <div className="overflow-auto max-h-[360px]">
                   <Table>
-                    <TableHeader className="sticky top-0 bg-[#f8f9fa] z-10">
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className={th}>Name</TableHead>
-                        <TableHead className={th}>Rolle</TableHead>
-                        <TableHead className={`${th} text-right`}>Beworben</TableHead>
-                        <TableHead className={`${th} text-center`}>Status</TableHead>
+                    <TableHeader className="sticky top-0 bg-stone-50/80 backdrop-blur-sm z-10">
+                      <TableRow className="hover:bg-transparent border-b border-stone-100">
+                        <TableHead className={thClass}>Name</TableHead>
+                        <TableHead className={thClass}>Rolle</TableHead>
+                        <TableHead className={`${thClass} text-right`}>Erfahrung</TableHead>
+                        <TableHead className={`${thClass} text-right`}>Beworben</TableHead>
+                        <TableHead className={`${thClass} text-center`}>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {gefiltert.map(k => (
-                        <TableRow key={k.id} className="text-sm">
-                          <TableCell className="font-medium">{k.name}</TableCell>
-                          <TableCell className="text-[#666]">{k.rolle}</TableCell>
-                          <TableCell className="text-right tabular-nums text-[#666]">{fmtDate(k.beworbenAm)}</TableCell>
+                        <TableRow key={k.id} className="text-[13px] hover:bg-violet-50/30 transition-colors">
+                          <TableCell className="font-medium text-stone-700">{k.name}</TableCell>
+                          <TableCell className="text-stone-500">{k.rolle}</TableCell>
+                          <TableCell className="text-right tabular-nums text-stone-500">{k.erfahrungJahre} J.</TableCell>
+                          <TableCell className="text-right tabular-nums text-stone-400">{fmtDate(k.beworbenAm)}</TableCell>
                           <TableCell className="text-center"><StatusBadge status={k.status} /></TableCell>
                         </TableRow>
                       ))}
@@ -220,38 +246,38 @@ export default function App() {
               </CardContent>
             </Card>
 
-            {/* SP 3 -- Ranking */}
-            <Card>
+            {/* SP 3: Ranking */}
+            <Card className="shadow-sm shadow-stone-200/50 border-stone-100">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-[#666] flex items-center gap-2">
-                  <SpBadge n={3} farbe="bg-amber-50 text-amber-700 border-amber-200" />
+                <CardTitle className="text-sm font-semibold text-stone-600 flex items-center gap-2.5">
+                  <Badge variant="outline" className="text-[10px] font-mono bg-amber-50 text-amber-600 border-amber-200 rounded-full px-2.5">SP 3</Badge>
                   Kandidaten-Ranking
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className={`${th} text-right w-[60px]`}>Rang</TableHead>
-                      <TableHead className={th}>Name</TableHead>
-                      <TableHead className={th}>Rolle</TableHead>
-                      <TableHead className={`${th} text-right`}>Runden</TableHead>
-                      <TableHead className={`${th} text-right`}>Avg Score</TableHead>
-                      <TableHead className={`${th} text-center`}>Status</TableHead>
+                    <TableRow className="hover:bg-transparent border-b border-stone-100">
+                      <TableHead className={`${thClass} w-[52px] text-center`}>Rang</TableHead>
+                      <TableHead className={thClass}>Name</TableHead>
+                      <TableHead className={thClass}>Rolle</TableHead>
+                      <TableHead className={`${thClass} text-right`}>Runden</TableHead>
+                      <TableHead className={`${thClass} text-right`}>Schnitt</TableHead>
+                      <TableHead className={`${thClass} text-center`}>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {ranking.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-sm text-[#999] py-6">Noch keine Bewertungen vorhanden.</TableCell>
+                        <TableCell colSpan={6} className="text-center text-[13px] text-stone-400 py-8">Noch keine Bewertungen vorhanden.</TableCell>
                       </TableRow>
                     ) : ranking.map((r, i) => (
-                      <TableRow key={r.kandidat.id} className="text-sm">
-                        <TableCell className="text-right tabular-nums font-bold text-[#999]">{i + 1}</TableCell>
-                        <TableCell className="font-medium">{r.kandidat.name}</TableCell>
-                        <TableCell className="text-[#666]">{r.kandidat.rolle}</TableCell>
-                        <TableCell className="text-right tabular-nums">{r.runden}</TableCell>
-                        <TableCell className={`text-right tabular-nums ${scoreFarbe(Math.round(r.avg))}`}>{fmtScore(r.avg)}</TableCell>
+                      <TableRow key={r.kandidat.id} className="text-[13px] hover:bg-amber-50/30 transition-colors">
+                        <TableCell className="text-center"><RankBadge rank={i + 1} /></TableCell>
+                        <TableCell className="font-medium text-stone-700">{r.kandidat.name}</TableCell>
+                        <TableCell className="text-stone-500">{r.kandidat.rolle}</TableCell>
+                        <TableCell className="text-right tabular-nums text-stone-500">{r.runden}</TableCell>
+                        <TableCell className={`text-right tabular-nums text-lg ${scoreFarbe(Math.round(r.avg))}`}>{fmtScore(r.avg)}</TableCell>
                         <TableCell className="text-center"><StatusBadge status={r.kandidat.status} /></TableCell>
                       </TableRow>
                     ))}
@@ -262,11 +288,16 @@ export default function App() {
           </div>
         </div>
 
-        <Separator />
-        <footer className="text-center text-xs text-[#999] py-4 space-y-1">
-          <p className="font-medium"><ShinyText text="Du hast gerade 3 Stored Procedures benutzt." speed={5} color="#666" shineColor="#16a34a" /></p>
-          <p>SP 1 = Filter nach Status, SP 2 = Bewertung mit Validierung, SP 3 = Ranking-Berechnung. Genau so funktioniert das in echten HR-Systemen.</p>
-        </footer>
+        {/* ── Footer ── */}
+        <div className="text-center mt-12 mb-6 space-y-2">
+          <p className="text-sm font-medium text-stone-500">
+            <ShinyText text="Du hast gerade 3 Stored Procedures benutzt." speed={6} color="#78716c" shineColor="#8b5cf6" />
+          </p>
+          <p className="text-xs text-stone-400 max-w-md mx-auto leading-relaxed">
+            SP 1 filtert, SP 2 validiert und speichert, SP 3 berechnet das Ranking.
+            Genau so funktioniert das in Workday, SAP und echten HR-Systemen.
+          </p>
+        </div>
       </main>
     </div>
   )
