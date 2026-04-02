@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { initialKandidaten, initialBewertungen, statusWerte, bewertungsTypen, fmtDate, fmtScore, avgScore, type Kandidat, type Bewertung } from "./data"
+import CountUp from "@/components/CountUp"
+import ShinyText from "@/components/ShinyText"
+import LightPillar from "@/components/LightPillar"
 
 const statusFarben: Record<string, string> = {
   Screening: "bg-blue-100 text-blue-700 hover:bg-blue-100",
@@ -78,15 +81,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa]">
-      <header className="bg-white border-b px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <header className="relative overflow-hidden bg-white border-b">
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <LightPillar topColor="#7c3aed" bottomColor="#2563eb" intensity={0.6} rotationSpeed={0.3} quality="low" pillarWidth={0.8} glowAmount={0.4} />
+        </div>
+        <div className="relative max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-[#1a1a1a] tracking-tight">Interview-Protokoll</h1>
-            <p className="text-sm text-[#666] mt-0.5">Stored Procedures -- interaktiv erklart</p>
+            <h1 className="text-xl font-semibold tracking-tight"><ShinyText text="Interview-Protokoll" speed={4} color="#1a1a1a" shineColor="#7c3aed" /></h1>
+            <p className="text-sm text-[#666] mt-0.5">Stored Procedures — interaktiv erklärt</p>
           </div>
           <div className="flex gap-6 text-center">
-            <div><p className="text-2xl font-bold tabular-nums text-[#1a1a1a]">{kandidaten.length}</p><p className="text-[10px] text-[#999] uppercase tracking-wider">Kandidaten</p></div>
-            <div><p className="text-2xl font-bold tabular-nums text-emerald-600">{bewertungen.length}</p><p className="text-[10px] text-[#999] uppercase tracking-wider">Bewertungen</p></div>
+            <div><p className="text-2xl font-bold tabular-nums text-[#1a1a1a]"><CountUp to={kandidaten.length} duration={1.2} /></p><p className="text-[10px] text-[#999] uppercase tracking-wider">Kandidaten</p></div>
+            <div><p className="text-2xl font-bold tabular-nums text-emerald-600"><CountUp to={bewertungen.length} duration={1.2} /></p><p className="text-[10px] text-[#999] uppercase tracking-wider">Bewertungen</p></div>
           </div>
         </div>
       </header>
@@ -258,7 +264,7 @@ export default function App() {
 
         <Separator />
         <footer className="text-center text-xs text-[#999] py-4 space-y-1">
-          <p className="font-medium text-[#666]">Du hast gerade 3 Stored Procedures benutzt.</p>
+          <p className="font-medium"><ShinyText text="Du hast gerade 3 Stored Procedures benutzt." speed={5} color="#666" shineColor="#16a34a" /></p>
           <p>SP 1 = Filter nach Status, SP 2 = Bewertung mit Validierung, SP 3 = Ranking-Berechnung. Genau so funktioniert das in echten HR-Systemen.</p>
         </footer>
       </main>
